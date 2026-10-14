@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guru Win - एडमिन पैनल</title>
+  <style>
+    body { font-family: sans-serif; background: #0f172a; color: #fff; padding: 20px; }
+    .card { background: #1e293b; padding: 20px; border-radius: 8px; max-width: 500px; margin: 30px auto; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+    input, button { padding: 12px; border-radius: 6px; margin: 8px 0; border: none; font-size: 15px; }
+    input { width: 92%; background: #334155; color: #fff; border: 1px solid #475569; }
+    button { background: #3b82f6; color: white; cursor: pointer; font-weight: bold; width: 100%; }
+    button:hover { background: #2563eb; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #475569; padding: 10px; text-align: left; }
+    th { background: #334155; }
+    .btn-reset { background: #10b981; padding: 6px 10px; width: auto; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2>Guru Win - वर्चुअल लेजर</h2>
+  <p style="color: #94a3b8; font-size: 13px;">डेमो चिप्स और यूजर मैनेजमेंट</p>
+
+  <div id="login-sec">
+    <input type="password" id="adminKey" placeholder="Admin Secret Key डालें">
+    <button onclick="loadUsers()">डैशबोर्ड खोलें</button>
+  </div>
+
+  <div id="data-sec" style="display:none;">
+    <h3>सक्रिय डेमो खाते</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>यूजर</th>
+          <th>वर्चुअल बैलेंस</th>
+          <th>कार्रवाई</th>
+        </tr>
+      </thead>
+      <tbody id="userList"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  let currentKey = '';
+
+  async function loadUsers() {
+    const key = document.getElementById('adminKey').value;
+    try {
+      const res = await fetch('/api/admin/users', {
+        headers: { 'x-admin-key': key }
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        currentKey = key;
+        document.getElementById('login-sec').style.display = 'none';
+        document.getElementById('data-sec').style.display = 'block';
+
+        const tbody = document.getElementById('userList');
+        tbody.innerHTML = '';
+        if (data.users.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">अभी कोई यूजर रजिस्टर्ड नहीं है।</td></tr>';
+          return;
+        }
+
+        data.users.forEach(u => {
+          tbody.innerHTML += `
+            <tr>
+              <td>${u.email}</td>
+              <td>₹${u.balance}</td>
+              <td>
+                <button class="btn-reset" onclick="updateCoins('${u.id}', 10000)">Reset ₹10k</button>
+              </td>
+            </tr>
+          `;
+        });
+      } else {
+        alert(data.error || 'पासवर्ड गलत है!');
+      }
+    } catch (e) {
+      alert('सर्वर कनेक्ट नहीं हुआ, 30 सेकंड बाद दोबारा कोशिश करें।');
+    }
+  }
+
+  async function updateCoins(userId, amount) {
+    const res = await fetch('/api/admin/update-balance', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-key': currentKey
+      },
+      body: JSON.stringify({ userId, amount })
+    });
+    if (res.ok) {
+      alert('डेमो कॉइन्स ₹10,000 पर रीसेट कर दिए गए!');
+      loadUsers();
+    }
+  }
+</script>
+
+</body>
+</html>

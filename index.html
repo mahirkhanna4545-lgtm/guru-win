@@ -385,6 +385,39 @@
       updateWallet(-100);
       myColourBet = col;
       document.getElementById('colourLog').innerText = `बेट लगी: ${col} पर ₹100.`;
+    }<button onclick="claimFreeDemoCoins()" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-left: 10px;">
+  + ₹5,000 Free Coins
+</button>
+
+    async function claimFreeDemoCoins() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    alert('डेमो कॉइन्स लेने के लिए कृपया पहले लॉगिन करें!');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/refill-demo', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      }
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.message);
+      const balanceEl = document.getElementById('user-balance') || document.getElementById('balance');
+      if (balanceEl) balanceEl.innerText = '₹' + data.balance;
+    } else {
+      alert(data.error);
     }
+  } catch (err) {
+    alert('कॉइन्स जोड़ने में समस्या आई, दोबारा कोशिश करें।');
+  }
+}
+
+    
 
     // Chicken Cross

@@ -15,53 +15,43 @@ const JWT_SECRET = 'guru_win_secret_key_8989';
 const ADMIN_SECRET = 'guru_admin_pass_2026';
 
 app.use(express.json());
-
-// स्टैटिक फोल्डर्स
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
 
-// मुख्य पेज (index.html ढूंढना)
+const users = [];
+
+// होमपेज रूट
 app.get('/', (req, res) => {
   const fileLocations = [
     path.join(__dirname, 'index.html'),
-    path.join(__dirname, 'public', 'index.html'),
-    path.join(process.cwd(), 'index.html'),
-    path.join(process.cwd(), 'public', 'index.html')
+    path.join(__dirname, 'public', 'index.html')
   ];
-
   for (const loc of fileLocations) {
-    if (fs.existsSync(loc)) {
-      return res.sendFile(loc);
-    }
+    if (fs.existsSync(loc)) return res.sendFile(loc);
   }
-  res.send('<h1>Guru Win Server Live hai! Par index.html nahi mili. GitHub check karein.</h1>');
+  res.send('<h1>Guru Win Live! index.html upload karein.</h1>');
 });
 
-// एडमिन पेज
+// एडमिन रूट
 app.get('/admin.html', (req, res) => {
   const adminLocations = [
     path.join(__dirname, 'admin.html'),
-    path.join(__dirname, 'public', 'admin.html'),
-    path.join(process.cwd(), 'admin.html'),
-    path.join(process.cwd(), 'public', 'admin.html')
+    path.join(__dirname, 'public', 'admin.html')
   ];
-
   for (const loc of adminLocations) {
-    if (fs.existsSync(loc)) {
-      return res.sendFile(loc);
-    }
+    if (fs.existsSync(loc)) return res.sendFile(loc);
   }
-  res.send('<h1>Admin file nahi mili!</h1>');
+  res.send('<h1>admin.html nahi mili!</h1>');
 });
 
-// डेटाबेस
-const users = [];
-
-// 1. साइनअप
+// 1. साइनअप API
 app.post('/api/signup', async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password || password.length < 6) return res.status(400).json({ error: 'कम से कम 6 अक्षरों का पासवर्ड डालें।' });
-  if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) return res.status(400).json({ error: 'ईमेल पहले से मौजूद है।' });
+  if (!email || !password || password.length < 6) {
+    return res.status(400).json({ error: 'कम से कम 6 अक्षरों का पासवर्ड डालें।' });
+  }
+  const exists = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  if (exists) return res.status(400).json({ error: 'यह खाता पहले से मौजूद है।' });
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const newUser = { id: 'u_' + Date.now(), email: email.toLowerCase(), password: hashedPassword, balance: 10000 };
@@ -71,20 +61,22 @@ app.post('/api/signup', async (req, res) => {
   res.json({ token, user: { email: newUser.email, balance: newUser.balance } });
 });
 
-// 2. लॉगिन
+// 2. लॉगिन API
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-  if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: 'ईमेल या पासवर्ड गलत है।' });
+  if (!user || !(await bcrypt.compare(password, user.password))) {
+    return res.status(400).json({ error: 'गलत ईमेल या पासवर्ड।' });
+  }
 
   const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
   res.json({ token, user: { email: user.email, balance: user.balance } });
 });
 
-// 3. फ्री रीफिल
+// 3. फ्री रीफिल API
 app.post('/api/refill-demo', (req, res) => {
   const authHeader = req.headers['authorization'];
-  if (!authHeader) return res.status(401).json({ error: 'पहले लॉगिन करें।' });
+  if (!authHeader) return res.status(401).json({ error: 'कृपया पहले लॉगिन करें।' });
   try {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -93,18 +85,18 @@ app.post('/api/refill-demo', (req, res) => {
     user.balance += 5000;
     res.json({ success: true, balance: user.balance });
   } catch (e) {
-    res.status(401).json({ error: 'टोकन अमान्य है।' });
+    res.status(401).json({ error: 'अमान्य टोकन' });
   }
 });
 
-// 4. एडमिन API
+// 4. एडमिन APIs
 app.get('/api/admin/users', (req, res) => {
-  if (req.headers['x-admin-key'] !== ADMIN_SECRET) return res.status(403).json({ error: 'गलत पासवर्ड!' });
+  if (req.headers['x-admin-key'] !== ADMIN_SECRET) return res.status(403).json({ error: 'गलत पासवर्ड' });
   res.json({ users: users.map(u => ({ id: u.id, email: u.email, balance: u.balance })) });
 });
 
 app.post('/api/admin/update-balance', (req, res) => {
-  if (req.headers['x-admin-key'] !== ADMIN_SECRET) return res.status(403).json({ error: 'अनधिकृत!' });
+  if (req.headers['x-admin-key'] !== ADMIN_SECRET) return res.status(403).json({ error: 'अनधिकृत' });
   const { userId, amount } = req.body;
   const user = users.find(u => u.id === userId);
   if (!user) return res.status(404).json({ error: 'यूजर नहीं मिला' });
@@ -112,7 +104,7 @@ app.post('/api/admin/update-balance', (req, res) => {
   res.json({ success: true, balance: user.balance });
 });
 
-// गेम इंजन - कलर प्रेडिक्शन
+// 5. कलर प्रेडिक्शन इंजन
 let colourTimer = 15;
 setInterval(() => {
   colourTimer--;
@@ -124,7 +116,7 @@ setInterval(() => {
   io.emit('colour_tick', { timer: colourTimer });
 }, 1000);
 
-// गेम इंजन - एविएटर
+// 6. एविएटर इंजन
 let crashTimer = 5;
 function runCrashEngine() {
   crashTimer = 5;

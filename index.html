@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guru Win - 10+ Demo Games</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { background: #070d18; color: #f8fafc; min-height: 100vh; padding-bottom: 50px; }
+    header { background: #0f172a; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; position: sticky; top: 0; z-index: 100; }
+    .brand { font-size: 20px; font-weight: 900; color: #38bdf8; }
+    .brand span { color: #f59e0b; }
+    .user-stats { display: flex; align-items: center; gap: 8px; }
+    .wallet-box { background: #1e293b; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; color: #4ade80; border: 1px solid #334155; }
+    .btn-auth-nav { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; }
+    .online-badge { font-size: 11px; color: #94a3b8; text-align: center; padding: 8px 0; background: #0b1324; border-bottom: 1px solid #1e293b; }
+    .view { display: none; padding: 16px; max-width: 500px; margin: 0 auto; }
+    .view.active { display: block; }
+    .card { background: #111a2e; border-radius: 14px; padding: 18px; border: 1px solid #1e293b; margin-bottom: 14px; text-align: center; }
+    .btn-back { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; margin-bottom: 14px; cursor: pointer; font-size: 12px; }
+    .section-title { font-size: 14px; color: #94a3b8; text-transform: uppercase; margin-bottom: 10px; text-align: left; }
+    .game-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .game-card { background: #131d33; border-radius: 12px; padding: 16px 10px; text-align: center; cursor: pointer; border: 1px solid #202d4a; }
+    .game-card .icon { font-size: 28px; margin-bottom: 6px; display: block; }
+    .game-card h4 { font-size: 14px; color: #f8fafc; margin-bottom: 2px; }
+    .game-card p { font-size: 10px; color: #94a3b8; }
+    .btn-main { width: 100%; padding: 12px; background: #38bdf8; color: #070d18; border: none; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; margin-top: 10px; }
+    .btn-main:disabled { background: #334155; color: #94a3b8; cursor: not-allowed; }
+    .log-box { font-size: 13px; color: #94a3b8; margin-top: 10px; min-height: 20px; }
+    .input-grp { margin-bottom: 12px; text-align: left; }
+    .input-grp label { display: block; font-size: 12px; margin-bottom: 4px; color: #94a3b8; }
+    .input-grp input { width: 100%; padding: 10px; background: #070d18; border: 1px solid #334155; border-radius: 8px; color: white; outline: none; }
+    .multiplier-display { font-size: 42px; font-weight: 900; color: #f59e0b; margin: 15px 0; }
+    .crashed-text { color: #ef4444 !important; }
+    .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-green { background: #16a34a; flex: 1; padding: 12px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; }
+    .btn-red { background: #dc2626; flex: 1; padding: 12px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; }
+    .btn-violet { background: #9333ea; flex: 1; padding: 12px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; }
+    .road-track { display: flex; justify-content: space-between; background: #070d18; padding: 12px; border-radius: 10px; margin: 15px 0; border: 1px solid #334155; }
+    .step-box { width: 18%; background: #1e293b; padding: 10px 4px; border-radius: 6px; font-size: 11px; font-weight: bold; text-align: center; }
+    .step-box.passed { background: #16a34a; color: white; }
+    .step-box.crashed { background: #dc2626; color: white; }
+    .mines-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 15px auto; max-width: 260px; }
+    .mine-cell { aspect-ratio: 1; background: #1e293b; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; border: 1px solid #334155; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">Guru <span>Win</span></div>
+    <div class="user-stats">
+      <div class="wallet-box" id="walletDisplay">₹10,000</div>
+      <button class="btn-auth-nav" id="authNavBtn" onclick="handleAuthNav()">लॉगआउट</button>
+    </div>
+  </header>
+
+  <div class="online-badge">🔴 ऑनलाइन खिलाड़ी: <span id="onlineCount">1</span> | 100% Demo Hub</div>
+
+  <!-- AUTH VIEW -->
+  <div id="authView" class="view">
+    <div class="card">
+      <h3 style="margin-bottom: 14px;" id="authTitle">लॉगिन करें</h3>
+      <form onsubmit="handleAuthSubmit(event)">
+        <div class="input-grp">
+          <label>ईमेल</label>
+          <input type="email" id="authEmail" required placeholder="player@guruwin.com">
+        </div>
+        <div class="input-grp">
+          <label>पासवर्ड</label>
+          <input type="password" id="authPass" required placeholder="कम से कम 6 अक्षर">
+        </div>
+        <button type="submit" class="btn-main" id="authSubmitBtn">लॉगिन</button>
+      </form>
+      <button style="background:none;border:none;color:#38bdf8;font-size:12px;margin-top:12px;cursor:pointer;" id="toggleAuthBtn" onclick="toggleAuthMode()">नया खाता बनाएं?</button>
+      <div class="log-box" id="authMsg"></div>
+    </div>
+  </div>
+
+  <!-- LOBBY VIEW (10+ Games) -->
+  <div id="lobbyView" class="view">
+    <div class="section-title">🔥 Live Multiplayer Games</div>
+    <div class="game-grid">
+      <div class="game-card" onclick="switchView('aviator')"><span class="icon">✈️</span><h4>Aviator Crash</h4><p>Live Multiplier</p></div>
+      <div class="game-card" onclick="switchView('colour')"><span class="icon">🎨</span><h4>Colour Trading</h4><p>Red/Green/Violet</p></div>
+    </div>
+
+    <div class="section-title">⚡ Instant Arcade Games</div>
+    <div class="game-grid">
+      <div class="game-card" onclick="switchView('chicken')"><span class="icon">🐔</span><h4>Chicken Cross</h4><p>Road Risk</p></div>
+      <div class="game-card" onclick="switchView('mines')"><span class="icon">💣</span><h4>Mines</h4><p>Gem vs Bomb</p></div>
+      <div class="game-card" onclick="switchView('coin')"><span class="icon">🪙</span><h4>Coin Flip</h4><p>Heads or Tails</p></div>
+      <div class="game-card" onclick="switchView('dice')"><span class="icon">🎲</span><h4>Dice Roll</h4><p>Over / Under</p></div>
+      <div class="game-card" onclick="switchView('wheel')"><span class="icon">🎡</span><h4>Spin Wheel</h4><p>Multiplier Spin</p></div>
+      <div class="game-card" onclick="switchView('hilo')"><span class="icon">🃏</span><h4>Hi-Lo Cards</h4><p>High or Low</p></div>
+      <div class="game-card" onclick="switchView('slots')"><span class="icon">🎰</span><h4>777 Slots</h4><p>3-Reel Jackpot</p></div>
+      <div class="game-card" onclick="switchView('roulette')"><span class="icon">🎯</span><h4>Roulette</h4><p>Red vs Black</p></div>
+      <div class="game-card" onclick="switchView('plinko')"><span class="icon">🔴</span><h4>Plinko Ball</h4><p>Drop to Win</p></div>
+    </div>
+  </div>
+
+  <!-- GAME 1: AVIATOR -->
+  <div id="aviatorView" class="view">
+    <button class="btn-back" onclick="switchView('lobby')">← Lobby</button>
+    <div class="card">
+      <h3>✈️ Aviator Crash (Multiplayer)</h3>
+      <div class="multiplier-display" id="crashVal">1.00x</div>
+      <div id="crashStatus" style="font-size:12px;color:#94a3b8;">इंतज़ार हो रहा है...</div>
+      <button class="btn-main" id="crashBtn" onclick="handleCrashBet()">Bet ₹100 लगाएं</button>
+      <div class="log-box" id="crashLog">टेकऑफ से पहले बेट लगाएं।</div>
+    </div>
+  </div>
+
+  <!-- GAME 2: COLOUR TRADING -->
+  <div id="colourView" class="view">
+    <button class="btn-back" onclick="switchView('lobby')">← Lobby</button>
+    <div class="card">
+      <h3>🎨 Colour Trading (Live)</h3>
+      <div style="font-size:24px;font-weight:bold;color:#38bdf8;margin:10px 0;" id="colourTimer">15s</div>
+      <div class="btn-row">
+        <button class="btn-green" onclick="betColour('Green')">Green (2x)</button>
+        <button class="btn-violet" onclick="betColour('Violet')">Violet (4.5x)</button>
+        <button class="btn-red" onclick="betColour('Red')">Red (2x)</button>
+      </div>
+      <div class="log-box" id="colourLog">रंग चुनें (₹100 बेट)</div>
+    </div>
+  </div>
+
+  <!-- GAME 3: CHICKEN CROSS -->
+  <div id="chickenView" class="view">
+    <button class="btn-back" onclick="switchView('lobby')">← Lobby</button>
+    <div class="card">
+      <h3>🐔 Chicken Cross</h3>
+      <p style="font-size:12px;color:#94a3b8;">मुर्गे को सड़क पार कराओ, बिना गाड़ी से टकराए!</p>
+      <div class="road-track">
+        <div class="step-box" id="cStep1">1.2x<br>Lane 1</div>
+        <div class="step-box" id="cStep2">1.5x<br>Lane 2</div>
+        <div class="step-box" id="cStep3">2.0x<br>Lane 3</div>
+        <div class="step-box" id="cStep4">3.0x<br>Lane 4</div>
+        <div class="step-box" id="cStep5">5.0x<br>Goal</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-main" style="background:#10b981;flex:1;" id="chickenStepBtn" onclick="stepChicken()">Cross (कदम बढ़ाएं)</button>
+        <button class="btn-main" style="background:#f59e0b;flex:1;" id="chickenCashBtn" onclick="cashoutChicken()" disabled>Cashout</button>
+      </div>
+      <button class="btn-main" id="chickenStartBtn" onclick="startChickenGame()" style="background:#3b82f6;">नया गेम (Bet ₹100)</button>
+      <div class="log-box" id="chickenLog">शुरू करने के लिए 'नया गेम' दबाएं।</div>
+    </div>
+  </div>
+
+  <!-- GAME 4: MINES -->
+  <div id="minesView" class="view">
+    <button class="btn-back" onclick="switchView('lobby')">← Lobby</button>
+    <div class="card">
+      <h3>💣 Mines (4x4 Grid)</h3>
+      <p style="font-size:12px;color:#94a3b8;">16 ब्लॉक में 3 बम हैं। Gem ढूंढें!</p>
+      <div class="mines-grid" id="minesGrid"></div>
+      <button class="btn-main" id="minesStartBtn" onclick="initMines()">Bet ₹100 & Start</button>
+      <button class="btn-main" id="minesCashBtn" style="background:#f59e0b;display:none;" onclick="cashoutMines()">Cashout</button>
+      <div class="log-box" id="minesLog">Start दबाकर ब्लॉक खोलें।</div>
+    </div>
+  </div>
+
+  <!-- GAME 5: COIN FLIP -->
+  <div id="coinView" class="view">
+    <button class="btn-back" onclick="switchView('lobby')">← Lobby</button>
+    <div class="card">
+      <h3>🪙 Coin Flip</h3>
+      <div style="font-size:48px;margin:15px 0;" id="coinIcon">🪙</div>
+      <div class="btn-row">
+        <button class="btn-main" onclick="playCoin('Heads')">Heads (₹100)</button>
+        <button class="btn-main" onclick="playCoin('Tails')">Tails (₹100)</button>
+      </div>
+      <div class="log-box" id="coinLog">Heads या Tails चुनें।</div>
+    </div>
+  </div>
+
+  <!-- GAME 6: DICE ROLL -->
+  <div id="diceView" class="view">
+    <button class="btn-back" onclick="switchView('lobby')">← Lobby</button>
+    <div class="card">
+      <h3>🎲 Dice Roll</h3>
+      <div style="font-size:50px;font-weight:bold;color:#38bdf8;margin:10px 0;" id="diceNum">6</div>
+      <div class="btn-row">
+        <button class="btn-main" onclick="playDice('under')">Under 4 (1,2,3)</button>
+        <button class="btn-main" onclick="playDice('over')">Over 3 (4,5,6)</button>
+      </div>
+      <div class="log-box" id="diceLog">Under या Over चुनें (₹100 bet).</div>
+    </div>
+  </div>
+
+  <!-- GAME 7: SPIN WHEEL -->
+  <div id="wheelView" class="view">
+    <button class="btn-back" onclick="switchView('lobby')">← Lobby</button>
+    <div class="card">
+      <h3>🎡 Spin & Win</h3>
+      <div style="font-size:40px;font-weight:bold;color:#f59e0b;margin:15px 0;" id="wheelResult">2.0x</div>
+      <button class="btn-main" onclick="spinWheel()">Spin Wheel (₹100 Bet)</button>
+      <div class="log-box" id="wheelLog">Spin करके 0x से 5x तक जीतें।</div>
+    </div>
+  </div>
+
+  <!-- GAME 8: HI-LO CARDS -->
+  <div id="hiloView" class="view">
+    <button class="btn-back" onclick="switchView('lobby')">← Lobby</button>
+    <div class="card">
+      <h3>🃏 Hi-Lo Cards</h3>
+      <div style="font-size:42px;font-weight:bold;color:#ef4444;margin:10px 0;" id="currentCard">7</div>
+      <div class="btn-row">
+        <button class="btn-main" onclick="playHilo('higher')">Higher ↑</button>
+        <button class="btn-main" onclick="playHilo('lower')">Lower ↓</button>
+      </div>
+      <div class="log-box" id="hiloLog">अगला कार्ड बड़ा होगा या छोटा? (₹100 bet)</div>
+    </div>
+  </div>
+
+  <!-- GAME 9: 777 SLOTS -->
+  <div id="slotsView" class="view">
+    <button class="btn-back" onclick="switchView('lobby')">← Lobby</button>
+    <div class="card">
+      <h3>🎰 777 Slots</h3>
+      <div style="font-size:36px;letter-spacing:10px;margin:15px 0;" id="slotReels">🍒 🍋 💎</div>
+      <button class="btn-main" onclick="spinSlots()">Spin Reels (₹100 Bet)</button>
+      <div class="log-box" id="slotLog">तीनों एक समान आने पर 5x जीतें!</div>
+    </div>
+  </div>
+
+  <!-- GAME 10: ROULETTE -->
+  <div id="rouletteView" class="view">
+    <button class="btn-back" onclick="switchView('lobby')">← Lobby</button>
+    <div class="card">
+      <h3>🎯 Roulette Red/Black</h3>
+      <div style="font-size:36px;font-weight:bold;margin:10px 0;" id="rouletteNum">0</div>
+      <div class="btn-row">
+        <button class="btn-red" onclick="playRoulette('Red')">Red (2x)</button>
+        <button class="btn-main" style="background:#111;color:#fff;border:1px solid #444;" onclick="playRoulette('Black')">Black (2x)</button>
+      </div>
+      <div class="log-box" id="rouletteLog">Red या Black चुनें (₹100).</div>
+    </div>
+  </div>
+
+  <!-- GAME 11: PLINKO -->
+  <div id="plinkoView" class="view">
+    <button class="btn-back" onclick="switchView('lobby')">← Lobby</button>
+    <div class="card">
+      <h3>🔴 Plinko Drop</h3>
+      <div style="font-size:30px;font-weight:bold;color:#10b981;margin:15px 0;" id="plinkoSlot">Drop Ready</div>
+      <button class="btn-main" onclick="dropPlinko()">Drop Ball (₹100 Bet)</button>
+      <div class="log-box" id="plinkoLog">Ball मल्टीप्लायर स्लॉट में गिरेगी।</div>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
+    let currentUser = null;
+    let authMode = 'login';
+
+    function updateWallet(amt) {
+      if (!currentUser) return;
+      currentUser.balance += amt;
+      document.getElementById('walletDisplay').innerText = '₹' + currentUser.balance.toLocaleString('en-IN');
+      localStorage.setItem('guruwin_user', JSON.stringify(currentUser));
+    }
+
+    function checkBal() {
+      if (!currentUser) { alert('पहले लॉगिन करें!'); return false; }
+      if (currentUser.balance < 100) { alert('बैलेंस खत्म हो गया!'); return false; }
+      return true;
+    }
+
+    function switchView(id) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.getElementById(id + 'View').classList.add('active');
+    }
+
+    function handleAuthNav() {
+      if (currentUser) {
+        currentUser = null;
+        localStorage.removeItem('guruwin_user');
+        localStorage.removeItem('guruwin_token');
+        document.getElementById('walletDisplay').innerText = '₹0';
+        document.getElementById('authNavBtn').innerText = 'लॉगिन';
+        switchView('auth');
+      } else {
+        switchView('auth');
+      }
+    }
+
+    function toggleAuthMode() {
+      authMode = authMode === 'login' ? 'signup' : 'login';
+      document.getElementById('authTitle').innerText = authMode === 'login' ? 'लॉगिन करें' : 'नया खाता बनाएं';
+      document.getElementById('authSubmitBtn').innerText = authMode === 'login' ? 'लॉगिन' : 'साइन अप करें';
+      document.getElementById('toggleAuthBtn').innerText = authMode === 'login' ? 'नया खाता बनाएं?' : 'पहले से खाता है? लॉगिन करें';
+    }
+
+    async function handleAuthSubmit(e) {
+      e.preventDefault();
+      const email = document.getElementById('authEmail').value;
+      const password = document.getElementById('authPass').value;
+      const res = await fetch(authMode === 'login' ? '/api/login' : '/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error);
+
+      currentUser = data.user;
+      localStorage.setItem('guruwin_user', JSON.stringify(currentUser));
+      localStorage.setItem('guruwin_token', data.token);
+      document.getElementById('walletDisplay').innerText = '₹' + currentUser.balance.toLocaleString('en-IN');
+      document.getElementById('authNavBtn').innerText = 'लॉगआउट';
+      switchView('lobby');
+    }
+
+    socket.on('online_count', c => document.getElementById('onlineCount').innerText = c);
+
+    // Aviator
+    let crashActive = false, myCrashBet = false, myCrashCashed = false, currentMult = 1.00;
+    socket.on('crash_waiting', d => {
+      crashActive = false; myCrashCashed = false;
+      document.getElementById('crashVal').className = 'multiplier-display';
+      document.getElementById('crashVal').innerText = '1.00x';
+      document.getElementById('crashStatus').innerText = `अगला राउंड: ${d.timer}s`;
+      if (!myCrashBet) {
+        document.getElementById('crashBtn').innerText = 'Bet ₹100 लगाएं';
+        document.getElementById('crashBtn').disabled = false;
+      }
+    });
+    socket.on('crash_tick', d => {
+      crashActive = true; currentMult = d.multiplier;
+      document.getElementById('crashVal').innerText = d.multiplier.toFixed(2) + 'x';
+      document.getElementById('crashStatus').innerText = 'उड़ रहा है...';
+      if (myCrashBet && !myCrashCashed) {
+        document.getElementById('crashBtn').innerText = `Cashout @ ₹${(100 * currentMult).toFixed(0)}`;
+      }
+    });
+    socket.on('crash_end', d => {
+      crashActive = false;
+      const v = document.getElementById('crashVal');
+      v.className = 'multiplier-display crashed-text';
+      v.innerText = 'CRASHED @ ' + d.finalMultiplier.toFixed(2) + 'x';
+      if (myCrashBet && !myCrashCashed) {
+        document.getElementById('crashLog').innerText = 'क्रैश हो गया! नुकसान ₹100.';
+      }
+      myCrashBet = false;
+      document.getElementById('crashBtn').innerText = 'राउंड समाप्त';
+      document.getElementById('crashBtn').disabled = true;
+    });
+
+    function handleCrashBet() {
+      if (!checkBal()) return;
+      if (!crashActive && !myCrashBet) {
+        updateWallet(-100);
+        myCrashBet = true;
+        document.getElementById('crashBtn').innerText = 'Waiting...';
+        document.getElementById('crashBtn').disabled = true;
+      } else if (crashActive && myCrashBet && !myCrashCashed) {
+        myCrashCashed = true;
+        const win = Math.round(100 * currentMult);
+        updateWallet(win);
+        document.getElementById('crashBtn').innerText = 'Cashed Out!';
+        document.getElementById('crashBtn').disabled = true;
+        document.getElementById('crashLog').innerText = `कैशआउट जीत: ₹${win}!`;
+      }
+    }
+
+    // Colour
+    let myColourBet = null;
+    socket.on('colour_tick', d => document.getElementById('colourTimer').innerText = d.timer + 's');
+    socket.on('colour_round_end', d => {
+      if (myColourBet) {
+        if (myColourBet === d.result) {
+          const mult = d.result === 'Violet' ? 450 : 200;
+          updateWallet(mult);
+          document.getElementById('colourLog').innerText = `Result: ${d.result}! आप ₹${mult} जीते!`;
+        } else {
+          document.getElementById('colourLog').innerText = `Result: ${d.result}. आप हार गए।`;
+        }
+        myColourBet = null;
+      }
+    });
+    function betColour(col) {
+      if (!checkBal() || myColourBet) return;
+      updateWallet(-100);
+      myColourBet = col;
+      document.getElementById('colourLog').innerText = `बेट लगी: ${col} पर ₹100.`;
+    }
+
+    // Chicken Cross
